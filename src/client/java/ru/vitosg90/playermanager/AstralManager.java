@@ -49,7 +49,7 @@ public final class AstralManager {
 		if (client.player == null || client.world == null) return;
 		if (astralActive) return;
 
-		anchorPos = client.player.getPos();
+		anchorPos = new Vec3d(client.player.getX(), client.player.getY(), client.player.getZ());
 		anchorYaw = client.player.getYaw();
 		anchorPitch = client.player.getPitch();
 		astralActive = true;
