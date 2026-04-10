@@ -172,15 +172,10 @@ public final class AstralManager {
 		GameProfile source = client.player.getGameProfile();
 
 		// В этой версии GameProfile — record: id(), name(), properties()
-		GameProfile fakeProfile = new GameProfile(
-			UUID.nameUUIDFromBytes(("playermanager-dummy-" + source.id()).getBytes()),
-			source.name()
-		);
+	UUID fakeUuid = UUID.nameUUIDFromBytes(("playermanager-dummy-" + source.id()).getBytes());
+GameProfile fakeProfile = new GameProfile(fakeUuid, source.name(), source.properties());
 
-		// копируем все свойства (в т.ч. textures), чтобы дубль имел твой скин
-		source.properties().forEach((key, prop) -> {
-    	fakeProfile.properties().put(key, prop);
-		});
+	
 
 		dummyBody = new OtherClientPlayerEntity(world, fakeProfile);
 		dummyBody.setId(DUMMY_ID);
