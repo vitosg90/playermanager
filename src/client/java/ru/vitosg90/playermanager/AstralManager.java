@@ -1,6 +1,9 @@
 package ru.vitosg90.playermanager;
 
 import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.Property;
+import java.util.UUID;
+import com.mojang.authlib.GameProfile;
 import java.util.UUID;
 import net.minecraft.block.Block;
 import net.minecraft.block.DoorBlock;
@@ -170,11 +173,28 @@ private static void spawnDummy(MinecraftClient client) {
 
 	removeDummy(client);
 
-	GameProfile source = client.player.getGameProfile();
-	GameProfile fakeProfile = new GameProfile(
-		UUID.nameUUIDFromBytes(("playermanager-dummy-" + source.getId()).getBytes()),
-		source.getName()
-	);
+	// Берём скин из PlayerListEntry (это клиентская "таблица игроков")
+	var entry = client.getNetworkHandler() != null ? client.getNetworkHandler().getPlayerListEntry(client.player.getUuid()) : null;
+
+	String name = client.player.getName().getString();
+	UUID fakeUuid = UUID.nameUUIDFromBytes(("playermanager-dummy-" + client.player.getUuid()).getBytes());
+	GameProfile fakeProfile = new GameProfile(fakeUuid, name);
+
+	if (entry != null) {
+		Property textures = entry.getProfile().properties().get("textures").stream().findFirst().orElse(null);
+		if (textures != null) {
+			fakeProfile.properties().put("textures", textures);
+		}
+	}
+
+	dummyBody = new OtherClientPlayerEntity(world, fakeProfile);
+	dummyBody.setId(DUMMY_ID);
+	dummyBody.refreshPositionAndAngles(anchorPos.x, anchorPos.y, anchorPos.z, anchorYaw, anchorPitch);
+	dummyBody.setPose(client.player.getPose());
+	dummyBody.bodyYaw = client.player.bodyYaw;
+	dummyBody.setHeadYaw(client.player.getHeadYaw());
+	world.addEntity(dummyBody);
+}
 
 	// Копируем skin/cape properties, чтобы дубль выглядел как ты
 	source.getProperties().forEach((key, values) -> {
