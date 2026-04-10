@@ -1,10 +1,6 @@
 package ru.vitosg90.playermanager;
 
 import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.properties.Property;
-import java.util.UUID;
-import com.mojang.authlib.GameProfile;
-import java.util.UUID;
 import net.minecraft.block.Block;
 import net.minecraft.block.DoorBlock;
 import net.minecraft.block.FenceGateBlock;
@@ -23,6 +19,8 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
+import java.util.UUID;
+
 public final class AstralManager {
 	private static final int DUMMY_ID = -881144;
 	private static final int PULSE_INTERVAL_TICKS = 50;
@@ -34,7 +32,6 @@ public final class AstralManager {
 	private static OtherClientPlayerEntity dummyBody;
 	private static int ticksSincePulse;
 	private static int hudTickGate;
-	
 
 	private AstralManager() {}
 
@@ -72,7 +69,6 @@ public final class AstralManager {
 		astralActive = false;
 		ticksSincePulse = 0;
 		hudTickGate = 0;
-	
 
 		if (anchorPos != null) {
 			client.player.refreshPositionAndAngles(anchorPos.x, anchorPos.y, anchorPos.z, anchorYaw, anchorPitch);
@@ -104,10 +100,10 @@ public final class AstralManager {
 		}
 	}
 
-public static boolean shouldCancelOutgoingPacket(Packet<?> packet) {
-	if (!astralActive) return false;
-	return false;
-}
+	public static boolean shouldCancelOutgoingPacket(Packet<?> packet) {
+		// Не блокируем movement-пакеты (иначе серверу становится "плохо" и растёт задержка).
+		return false;
+	}
 
 	public static boolean shouldIgnoreDoorLikeCollisions(Entity entity, Vec3d movement) {
 		if (!astralActive || movement.lengthSquared() <= 1.0E-8) return false;
@@ -155,62 +151,47 @@ public static boolean shouldCancelOutgoingPacket(Packet<?> packet) {
 			|| block instanceof PaneBlock;
 	}
 
-private static void sendAnchorPulse(MinecraftClient client) {
-	if (anchorPos == null) return;
-	ClientPlayNetworkHandler nh = client.getNetworkHandler();
-	if (nh == null) return;
+	private static void sendAnchorPulse(MinecraftClient client) {
+		if (anchorPos == null) return;
+		ClientPlayNetworkHandler nh = client.getNetworkHandler();
+		if (nh == null) return;
 
-	nh.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(
-		anchorPos.x, anchorPos.y, anchorPos.z,
-		client.player != null && client.player.isOnGround(),
-		false
-	));
-}
-
-private static void spawnDummy(MinecraftClient client) {
-	ClientWorld world = client.world;
-	if (world == null || client.player == null || anchorPos == null) return;
-
-	removeDummy(client);
-
-	// Берём скин из PlayerListEntry (это клиентская "таблица игроков")
-	var entry = client.getNetworkHandler() != null ? client.getNetworkHandler().getPlayerListEntry(client.player.getUuid()) : null;
-
-	String name = client.player.getName().getString();
-	UUID fakeUuid = UUID.nameUUIDFromBytes(("playermanager-dummy-" + client.player.getUuid()).getBytes());
-	GameProfile fakeProfile = new GameProfile(fakeUuid, name);
-
-	if (entry != null) {
-		Property textures = entry.getProfile().properties().get("textures").stream().findFirst().orElse(null);
-		if (textures != null) {
-			fakeProfile.properties().put("textures", textures);
-		}
+		nh.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(
+			anchorPos.x, anchorPos.y, anchorPos.z,
+			client.player != null && client.player.isOnGround(),
+			false
+		));
 	}
 
-	dummyBody = new OtherClientPlayerEntity(world, fakeProfile);
-	dummyBody.setId(DUMMY_ID);
-	dummyBody.refreshPositionAndAngles(anchorPos.x, anchorPos.y, anchorPos.z, anchorYaw, anchorPitch);
-	dummyBody.setPose(client.player.getPose());
-	dummyBody.bodyYaw = client.player.bodyYaw;
-	dummyBody.setHeadYaw(client.player.getHeadYaw());
-	world.addEntity(dummyBody);
-}
+	private static void spawnDummy(MinecraftClient client) {
+		ClientWorld world = client.world;
+		if (world == null || client.player == null || anchorPos == null) return;
 
-	// Копируем skin/cape properties, чтобы дубль выглядел как ты
-	source.getProperties().forEach((key, values) -> {
-		for (var prop : values) {
-			fakeProfile.getProperties().put(key, prop);
-		}
-	});
+		removeDummy(client);
 
-	dummyBody = new OtherClientPlayerEntity(world, fakeProfile);
-	dummyBody.setId(DUMMY_ID);
-	dummyBody.refreshPositionAndAngles(anchorPos.x, anchorPos.y, anchorPos.z, anchorYaw, anchorPitch);
-	dummyBody.setPose(client.player.getPose());
-	dummyBody.bodyYaw = client.player.bodyYaw;
-	dummyBody.setHeadYaw(client.player.getHeadYaw());
-	world.addEntity(dummyBody);
-}
+		GameProfile source = client.player.getGameProfile();
+
+		// В этой версии GameProfile — record: id(), name(), properties()
+		GameProfile fakeProfile = new GameProfile(
+			UUID.nameUUIDFromBytes(("playermanager-dummy-" + source.id()).getBytes()),
+			source.name()
+		);
+
+		// копируем все свойства (в т.ч. textures), чтобы дубль имел твой скин
+		source.properties().forEach((key, values) -> {
+			for (var prop : values) {
+				fakeProfile.properties().put(key, prop);
+			}
+		});
+
+		dummyBody = new OtherClientPlayerEntity(world, fakeProfile);
+		dummyBody.setId(DUMMY_ID);
+		dummyBody.refreshPositionAndAngles(anchorPos.x, anchorPos.y, anchorPos.z, anchorYaw, anchorPitch);
+		dummyBody.setPose(client.player.getPose());
+		dummyBody.bodyYaw = client.player.bodyYaw;
+		dummyBody.setHeadYaw(client.player.getHeadYaw());
+		world.addEntity(dummyBody);
+	}
 
 	private static void ensureDummy(MinecraftClient client) {
 		ClientWorld world = client.world;
@@ -232,4 +213,3 @@ private static void spawnDummy(MinecraftClient client) {
 		client.player.sendMessage(Text.literal("[PlayerManager] " + msg), true);
 	}
 }
-
