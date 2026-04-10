@@ -31,7 +31,7 @@ public final class AstralManager {
 	private static OtherClientPlayerEntity dummyBody;
 	private static int ticksSincePulse;
 	private static int hudTickGate;
-	private static boolean allowOneMovePacket;
+	
 
 	private AstralManager() {}
 
@@ -69,7 +69,7 @@ public final class AstralManager {
 		astralActive = false;
 		ticksSincePulse = 0;
 		hudTickGate = 0;
-		allowOneMovePacket = false;
+	
 
 		if (anchorPos != null) {
 			client.player.refreshPositionAndAngles(anchorPos.x, anchorPos.y, anchorPos.z, anchorYaw, anchorPitch);
@@ -101,16 +101,10 @@ public final class AstralManager {
 		}
 	}
 
-	public static boolean shouldCancelOutgoingPacket(Packet<?> packet) {
-		if (!astralActive) return false;
-		if (!(packet instanceof PlayerMoveC2SPacket)) return false;
-
-		if (allowOneMovePacket) {
-			allowOneMovePacket = false;
-			return false;
-		}
-		return true;
-	}
+public static boolean shouldCancelOutgoingPacket(Packet<?> packet) {
+	if (!astralActive) return false;
+	return false;
+}
 
 	public static boolean shouldIgnoreDoorLikeCollisions(Entity entity, Vec3d movement) {
 		if (!astralActive || movement.lengthSquared() <= 1.0E-8) return false;
@@ -158,18 +152,17 @@ public final class AstralManager {
 			|| block instanceof PaneBlock;
 	}
 
-	private static void sendAnchorPulse(MinecraftClient client) {
-		if (anchorPos == null) return;
-		ClientPlayNetworkHandler nh = client.getNetworkHandler();
-		if (nh == null) return;
+private static void sendAnchorPulse(MinecraftClient client) {
+	if (anchorPos == null) return;
+	ClientPlayNetworkHandler nh = client.getNetworkHandler();
+	if (nh == null) return;
 
-		allowOneMovePacket = true;
-		nh.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(
-			anchorPos.x, anchorPos.y, anchorPos.z,
-			client.player != null && client.player.isOnGround(),
-			false
-		));
-	}
+	nh.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(
+		anchorPos.x, anchorPos.y, anchorPos.z,
+		client.player != null && client.player.isOnGround(),
+		false
+	));
+}
 
 private static void spawnDummy(MinecraftClient client) {
 	ClientWorld world = client.world;
