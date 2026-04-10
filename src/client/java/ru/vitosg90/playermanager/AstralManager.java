@@ -1,5 +1,7 @@
 package ru.vitosg90.playermanager;
 
+import com.mojang.authlib.GameProfile;
+import java.util.UUID;
 import net.minecraft.block.Block;
 import net.minecraft.block.DoorBlock;
 import net.minecraft.block.FenceGateBlock;
@@ -169,20 +171,33 @@ public final class AstralManager {
 		));
 	}
 
-	private static void spawnDummy(MinecraftClient client) {
-		ClientWorld world = client.world;
-		if (world == null || client.player == null || anchorPos == null) return;
+private static void spawnDummy(MinecraftClient client) {
+	ClientWorld world = client.world;
+	if (world == null || client.player == null || anchorPos == null) return;
 
-		removeDummy(client);
+	removeDummy(client);
 
-		dummyBody = new OtherClientPlayerEntity(world, client.player.getGameProfile());
-		dummyBody.setId(DUMMY_ID);
-		dummyBody.refreshPositionAndAngles(anchorPos.x, anchorPos.y, anchorPos.z, anchorYaw, anchorPitch);
-		dummyBody.setPose(client.player.getPose());
-		dummyBody.bodyYaw = client.player.bodyYaw;
-		dummyBody.setHeadYaw(client.player.getHeadYaw());
-		world.addEntity(dummyBody);
-	}
+	GameProfile source = client.player.getGameProfile();
+	GameProfile fakeProfile = new GameProfile(
+		UUID.nameUUIDFromBytes(("playermanager-dummy-" + source.getId()).getBytes()),
+		source.getName()
+	);
+
+	// Копируем skin/cape properties, чтобы дубль выглядел как ты
+	source.getProperties().forEach((key, values) -> {
+		for (var prop : values) {
+			fakeProfile.getProperties().put(key, prop);
+		}
+	});
+
+	dummyBody = new OtherClientPlayerEntity(world, fakeProfile);
+	dummyBody.setId(DUMMY_ID);
+	dummyBody.refreshPositionAndAngles(anchorPos.x, anchorPos.y, anchorPos.z, anchorYaw, anchorPitch);
+	dummyBody.setPose(client.player.getPose());
+	dummyBody.bodyYaw = client.player.bodyYaw;
+	dummyBody.setHeadYaw(client.player.getHeadYaw());
+	world.addEntity(dummyBody);
+}
 
 	private static void ensureDummy(MinecraftClient client) {
 		ClientWorld world = client.world;
