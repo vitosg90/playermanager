@@ -178,10 +178,8 @@ public final class AstralManager {
 		);
 
 		// копируем все свойства (в т.ч. textures), чтобы дубль имел твой скин
-		source.properties().forEach((key, values) -> {
-			for (var prop : values) {
-				fakeProfile.properties().put(key, prop);
-			}
+		source.properties().forEach((key, prop) -> {
+    	fakeProfile.properties().put(key, prop);
 		});
 
 		dummyBody = new OtherClientPlayerEntity(world, fakeProfile);
